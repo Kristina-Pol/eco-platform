@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ЭкоПлатформа</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>ЭкоПлатформа</h1>
+            <p>Учет отходов и экологический вклад</p>
+        </div>
+    </header>
+
+    <section class="search-section">
+        <div class="container">
+            <h2>Найти пункт приема</h2>
+            <div id="pointsList" class="points-list"></div>
+        </div>
+    </section>
+
+    <section class="report-section">
+        <div class="container">
+            <h2>Добавить отчет</h2>
+            <select id="wasteType">
+                <option value="1">Пластик</option>
+                <option value="2">Бумага</option>
+                <option value="3">Стекло</option>
+            </select>
+            <input type="number" id="weight" placeholder="Вес (кг)">
+            <select id="recyclingPoint">
+                <option value="1">Пункт №1</option>
+                <option value="2">Пункт №2</option>
+            </select>
+            <button onclick="addReport()">Добавить</button>
+        </div>
+    </section>
+
+    <section class="stats-section">
+        <div class="container">
+            <h2>Ваш экологический вклад</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Эко-баллы</h3>
+                    <p id="ecoPoints">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Сдано отходов</h3>
+                    <p id="wasteStats"></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="achievements-section">
+        <div class="container">
+            <h2>Достижения</h2>
+            <div class="achievements" id="achievements"></div>
+        </div>
+    </section>
+
+
+
+    <script>
+        const userId = 123; // Пример ID пользователя
+
+        // Загрузка пунктов приема
+        async function loadPoints() {
+            const response = await fetch('http://localhost:3000/api/recycling_points');
+            const points = await response.json();
+            const pointsList = document.getElementById('pointsList');
+            pointsList.innerHTML = points.map(point => `
+                <div class="point-card">
+                    <h3>${point.name}</h3>
+                    <p>${point.address}</p>
+                </div>
+            `).join('');
+        }
+
+        // Добавление отчета
+        async function addReport() {
+            const wasteType = document.getElementById('wasteType').value;
+            const weight = document.getElementById('weight').value;
+            const recyclingPoint = document.getElementById('recyclingPoint').value;
+            await fetch('http://localhost:3000/api/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, waste_type_id: wasteType, weight, recycling_point_id: recyclingPoint })
+            });
+            loadStats();
+            loadAchievements();
+        }
+
+        // Загрузка статистики
+        async function loadStats() {
+            const response = await fetch(`http://localhost:3000/api/users/${userId}/stats`);
+            const data = await response.json();
+            document.getElementById('ecoPoints').textContent = data.eco_points;
+            document.getElementById('wasteStats').innerHTML = data.waste.map(w => `${w.name}: ${w.weight} кг`).join('<br>');
+        }
+
+        // Загрузка достижений
+        async function loadAchievements() {
+            const response = await fetch(`http://localhost:3000/api/users/${userId}/achievements`);
+            const data = await response.json();
+            const achievements = [
+                { name: 'Эко-Новичок', threshold: 10, earned: data.achievement === 'Эко-Новичок' || data.achievement === 'Эко-Активист' || data.achievement === 'Эко-Герой' },
+                { name: 'Эко-Активист', threshold: 50, earned: data.achievement === 'Эко-Активист' || data.achievement === 'Эко-Герой' },
+                { name: 'Эко-Герой', threshold: 100, earned: data.achievement === 'Эко-Герой' }
+            ];
+            document.getElementById('achievements').innerHTML = achievements.map(a => `
+                <div class="achievement-card">
+                    <h3>${a.name}</h3>
+                    <p>Наберите ${a.threshold} эко-баллов</p>
+                    <span class="badge ${a.earned ? 'earned' : ''}">${a.earned ? 'Заработано' : 'В процессе'}</span>
+                </div>
+            `).join('');
+        }
+
+        // Инициализация
+        window.onload = () => {
+            fetch('http://localhost:3000/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, username: 'TestUser' })
+            }).then(() => {
+                loadPoints();
+                loadStats();
+                loadAchievements();
+            });
+        };
+    </script>
+</body>
+</html>
