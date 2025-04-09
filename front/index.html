@@ -7,10 +7,31 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Модальное окно для авторизации -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <h2>Авторизация</h2>
+            <p>Пожалуйста, введите ваше имя пользователя:</p>
+            <input type="text" id="usernameInput" placeholder="Имя пользователя">
+            <button onclick="authorizeUser(event)">Войти</button>
+        </div>
+    </div>
+
     <header>
         <div class="container">
-            <h1>ЭкоПлатформа</h1>
-            <p>Учет отходов и экологический вклад</p>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>ЭкоПлатформа</h1>
+                    <p>Учет отходов и экологический вклад</p>
+                </div>
+                <div class="header-right">
+                    <div class="user-info">
+                        <span class="user-label">Пользователь:</span>
+                        <span id="currentUser" class="user-name"></span>
+                        <button onclick="logout()" class="logout-btn">Выйти</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -26,8 +47,8 @@
             <h2>Добавить отчет</h2>
             <select id="wasteType">
                 <option value="1">Пластик</option>
-                <option value="2">Бумага</option>
-                <option value="3">Стекло</option>
+                <option value="2">Стекло</option>
+                <option value="3">Бумага</option>
             </select>
             <input type="number" id="weight" placeholder="Вес (кг)">
             <select id="recyclingPoint">
@@ -61,76 +82,179 @@
         </div>
     </section>
 
-
+    <footer>
+        <div class="container">
+            
+            <a href="https://t.me/Ecological_platform_Bot" target="_blank" class="telegram-link">
+                <img src="icon.png" alt="Telegram" class="telegram-icon"> Наш Telegram-бот
+            </a>
+        </div>
+    </footer>
 
     <script>
-        const userId = 123; // Пример ID пользователя
+        let userId = localStorage.getItem('userId') || null;
+        let username = localStorage.getItem('username') || null;
+
+        // Проверяем, авторизован ли пользователь
+        window.onload = () => {
+            if (userId && username) {
+                // Если пользователь уже авторизован, скрываем модальное окно
+                document.getElementById('authModal').style.display = 'none';
+                document.getElementById('currentUser').textContent = username;
+                loadPoints();
+                loadStats();
+                loadAchievements();
+            } else {
+                // Если пользователь не авторизован, показываем модальное окно
+                document.getElementById('authModal').style.display = 'block';
+            }
+        };
+
+        // Авторизация пользователя
+        async function authorizeUser(event) {
+            event.preventDefault(); // Предотвращаем перезагрузку страницы
+            username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                alert('Пожалуйста, введите имя пользователя.');
+                return;
+            }
+
+            try {
+                // Регистрируем пользователя
+                const response = await fetch('http://localhost:3000/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                if (!response.ok) throw new Error('Ошибка регистрации пользователя');
+                const data = await response.json();
+                userId = data.user_id;
+
+                // Получаем user_id по имени (на случай, если пользователь уже существует)
+                const userResponse = await fetch(`http://localhost:3000/api/users/by-username/${username}`);
+                if (!userResponse.ok) throw new Error('Ошибка получения user_id');
+                const userData = await userResponse.json();
+                userId = userData.user_id;
+
+                // Сохраняем данные в localStorage
+                localStorage.setItem('userId', userId);
+                localStorage.setItem('username', username);
+
+                // Скрываем модальное окно
+                document.getElementById('authModal').style.display = 'none';
+                document.getElementById('currentUser').textContent = username;
+
+                // Загружаем данные пользователя
+                loadPoints();
+                loadStats();
+                loadAchievements();
+            } catch (error) {
+                console.error('Ошибка авторизации:', error);
+                alert('Не удалось авторизоваться. Проверьте консоль для деталей.');
+            }
+        }
 
         // Загрузка пунктов приема
         async function loadPoints() {
-            const response = await fetch('http://localhost:3000/api/recycling_points');
-            const points = await response.json();
-            const pointsList = document.getElementById('pointsList');
-            pointsList.innerHTML = points.map(point => `
-                <div class="point-card">
-                    <h3>${point.name}</h3>
-                    <p>${point.address}</p>
-                </div>
-            `).join('');
+            try {
+                const response = await fetch('http://localhost:3000/api/recycling_points');
+                if (!response.ok) throw new Error('Ошибка загрузки пунктов приема');
+                const points = await response.json();
+                const pointsList = document.getElementById('pointsList');
+                pointsList.innerHTML = points.map(point => `
+                    <div class="point-card">
+                        <h3>${point.name}</h3>
+                        <p>${point.address}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Ошибка при загрузке пунктов приема:', error);
+                alert('Не удалось загрузить пункты приема.');
+            }
         }
 
         // Добавление отчета
         async function addReport() {
-            const wasteType = document.getElementById('wasteType').value;
-            const weight = document.getElementById('weight').value;
-            const recyclingPoint = document.getElementById('recyclingPoint').value;
-            await fetch('http://localhost:3000/api/reports', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, waste_type_id: wasteType, weight, recycling_point_id: recyclingPoint })
-            });
-            loadStats();
-            loadAchievements();
+            if (!userId) {
+                alert('Пожалуйста, авторизуйтесь перед добавлением отчета.');
+                return;
+            }
+            try {
+                const wasteType = document.getElementById('wasteType').value;
+                const weight = document.getElementById('weight').value;
+                const recyclingPoint = document.getElementById('recyclingPoint').value;
+                const response = await fetch('http://localhost:3000/api/reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, waste_type_id: wasteType, weight, recycling_point_id: recyclingPoint })
+                });
+                if (!response.ok) throw new Error('Ошибка добавления отчета');
+                loadStats();
+                loadAchievements();
+            } catch (error) {
+                console.error('Ошибка при добавлении отчета:', error);
+                alert('Не удалось добавить отчет.');
+            }
         }
 
         // Загрузка статистики
-        async function loadStats() {
+            async function loadStats() {
+        if (!userId) return;
+        try {
             const response = await fetch(`http://localhost:3000/api/users/${userId}/stats`);
+            if (!response.ok) throw new Error('Ошибка загрузки статистики');
             const data = await response.json();
-            document.getElementById('ecoPoints').textContent = data.eco_points;
-            document.getElementById('wasteStats').innerHTML = data.waste.map(w => `${w.name}: ${w.weight} кг`).join('<br>');
+            console.log('Статистика от бэкенда:', data); // Отладка
+            document.getElementById('ecoPoints').textContent = data.eco_points || 0;
+            document.getElementById('wasteStats').innerHTML = data.waste && data.waste.length > 0
+                ? data.waste.map(w => `${w.name}: ${w.weight} кг`).join('<br>')
+                : 'Нет данных';
+        } catch (error) {
+            console.error('Ошибка при загрузке статистики:', error);
+            alert('Не удалось загрузить статистику.');
         }
+    }
 
         // Загрузка достижений
         async function loadAchievements() {
-            const response = await fetch(`http://localhost:3000/api/users/${userId}/achievements`);
-            const data = await response.json();
-            const achievements = [
-                { name: 'Эко-Новичок', threshold: 10, earned: data.achievement === 'Эко-Новичок' || data.achievement === 'Эко-Активист' || data.achievement === 'Эко-Герой' },
-                { name: 'Эко-Активист', threshold: 50, earned: data.achievement === 'Эко-Активист' || data.achievement === 'Эко-Герой' },
-                { name: 'Эко-Герой', threshold: 100, earned: data.achievement === 'Эко-Герой' }
-            ];
-            document.getElementById('achievements').innerHTML = achievements.map(a => `
-                <div class="achievement-card">
-                    <h3>${a.name}</h3>
-                    <p>Наберите ${a.threshold} эко-баллов</p>
-                    <span class="badge ${a.earned ? 'earned' : ''}">${a.earned ? 'Заработано' : 'В процессе'}</span>
-                </div>
-            `).join('');
+            if (!userId) return;
+            try {
+                const response = await fetch(`http://localhost:3000/api/users/${userId}/achievements`);
+                if (!response.ok) throw new Error('Ошибка загрузки достижений');
+                const data = await response.json();
+                const achievements = [
+                    { name: 'Эко-Новичок', threshold: 10, earned: data.achievement === 'Эко-Новичок' || data.achievement === 'Эко-Активист' || data.achievement === 'Эко-Герой' },
+                    { name: 'Эко-Активист', threshold: 50, earned: data.achievement === 'Эко-Активист' || data.achievement === 'Эко-Герой' },
+                    { name: 'Эко-Герой', threshold: 100, earned: data.achievement === 'Эко-Герой' }
+                ];
+                document.getElementById('achievements').innerHTML = achievements.map(a => `
+                    <div class="achievement-card">
+                        <h3>${a.name}</h3>
+                        <p>Наберите ${a.threshold} эко-баллов</p>
+                        <span class="badge ${a.earned ? 'earned' : ''}">${a.earned ? 'Заработано' : 'В процессе'}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Ошибка при загрузке достижений:', error);
+                alert('Не удалось загрузить достижения.');
+            }
         }
 
-        // Инициализация
-        window.onload = () => {
-            fetch('http://localhost:3000/api/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, username: 'TestUser' })
-            }).then(() => {
-                loadPoints();
-                loadStats();
-                loadAchievements();
-            });
-        };
+        // Выход из аккаунта
+        function logout() {
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            userId = null;
+            username = null;
+            document.getElementById('currentUser').textContent = '';
+            document.getElementById('authModal').style.display = 'block';
+            // Очищаем данные на странице
+            document.getElementById('pointsList').innerHTML = '';
+            document.getElementById('ecoPoints').textContent = '0';
+            document.getElementById('wasteStats').innerHTML = '';
+            document.getElementById('achievements').innerHTML = '';
+        }
+
     </script>
 </body>
 </html>

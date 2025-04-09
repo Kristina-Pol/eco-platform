@@ -5,6 +5,7 @@ const port = 3000;
 
 app.use(express.json());
 
+// Настройка CORS
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -21,8 +22,8 @@ const db = new sqlite3.Database('waste_management.db', (err) => {
 // Инициализация базы данных
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
-        user_id INTEGER PRIMARY KEY,
-        username TEXT,
+        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
         eco_points INTEGER DEFAULT 0
     )`);
     db.run(`CREATE TABLE IF NOT EXISTS waste_types (
@@ -64,12 +65,25 @@ db.serialize(() => {
     });
 });
 
-// Регистрация пользователя
+// Регистрация пользователя по имени
 app.post('/api/users', (req, res) => {
-    const { user_id, username } = req.body;
-    db.run("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", [user_id, username], (err) => {
+    const { username } = req.body;
+    db.run("INSERT OR IGNORE INTO users (username, eco_points) VALUES (?, 0)", [username], function(err) {
         if (err) return res.status(500).json({ message: 'Server Error' });
-        res.status(201).json({ message: 'User registered' });
+        db.get("SELECT user_id FROM users WHERE username = ?", [username], (err, row) => {
+            if (err) return res.status(500).json({ message: 'Server Error' });
+            res.status(201).json({ user_id: row.user_id });
+        });
+    });
+});
+
+// Получить user_id по имени пользователя
+app.get('/api/users/by-username/:username', (req, res) => {
+    const username = req.params.username;
+    db.get("SELECT user_id FROM users WHERE username = ?", [username], (err, row) => {
+        if (err) return res.status(500).json({ message: 'Server Error' });
+        if (!row) return res.status(404).json({ message: 'User not found' });
+        res.status(200).json({ user_id: row.user_id });
     });
 });
 
@@ -95,7 +109,7 @@ app.get('/api/users/:user_id/stats', (req, res) => {
     const user_id = req.params.user_id;
     db.get("SELECT eco_points FROM users WHERE user_id = ?", [user_id], (err, user) => {
         if (err || !user) return res.status(500).json({ message: 'Server Error' });
-        db.all("SELECT wt.name, SUM(r.weight) as weight FROM reports r JOIN waste_types wt ON r.waste_type_id = wt.id WHERE r.user_id = ? GROUP BY wt.name", [user_id], (err, stats) => {
+        db.all("SELECT wt.name, SUM(r.weight) as weight FROM reports r JOIN waste_types wt ON r.waste_type_id = wt.id WHERE r.user_id = ? GROUP BY wt.name ORDER BY wt.id", [user_id], (err, stats) => {
             if (err) return res.status(500).json({ message: 'Server Error' });
             res.status(200).json({ eco_points: user.eco_points, waste: stats });
         });
@@ -137,3 +151,5 @@ app.get('/api/users/:user_id/achievements', (req, res) => {
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
+
+
