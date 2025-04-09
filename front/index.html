@@ -35,6 +35,9 @@
         </div>
     </header>
 
+    <!-- Основной контейнер для секций -->
+<main class="main-content">
+    <!-- Секция "Найти пункт приема" -->
     <section class="search-section">
         <div class="container">
             <h2>Найти пункт приема</h2>
@@ -42,45 +45,54 @@
         </div>
     </section>
 
-    <section class="report-section">
+    <!-- Общий блок для "Добавить отчет" и "Ваш экологический вклад" -->
+    <section class="action-stats-section">
         <div class="container">
-            <h2>Добавить отчет</h2>
-            <select id="wasteType">
-                <option value="1">Пластик</option>
-                <option value="2">Стекло</option>
-                <option value="3">Бумага</option>
-            </select>
-            <input type="number" id="weight" placeholder="Вес (кг)">
-            <select id="recyclingPoint">
-                <option value="1">Пункт №1</option>
-                <option value="2">Пункт №2</option>
-            </select>
-            <button onclick="addReport()">Добавить</button>
-        </div>
-    </section>
-
-    <section class="stats-section">
-        <div class="container">
-            <h2>Ваш экологический вклад</h2>
-            <div class="stats">
-                <div class="stat-card">
-                    <h3>Эко-баллы</h3>
-                    <p id="ecoPoints">0</p>
+            <div class="action-stats-wrapper">
+                <!-- Секция "Добавить отчет" -->
+                <div class="report-section">
+                    <h2>Добавить отчет</h2>
+                    <div class="report-form">
+                        <select id="wasteType">
+                            <option value="1">Пластик</option>
+                            <option value="2">Стекло</option>
+                            <option value="3">Бумага</option>
+                        </select>
+                        <input type="number" id="weight" placeholder="Вес (кг)">
+                        <select id="recyclingPoint">
+                            <option value="1">Пункт №1</option>
+                            <option value="2">Пункт №2</option>
+                        </select>
+                        <button onclick="addReport()">Добавить</button>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>Сдано отходов</h3>
-                    <p id="wasteStats"></p>
+
+                <!-- Секция "Ваш экологический вклад" -->
+                <div class="stats-section">
+                    <h2>Ваш экологический вклад</h2>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <h3>Эко-баллы</h3>
+                            <p id="ecoPoints">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Сдано отходов</h3>
+                            <p id="wasteStats"></p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
+    <!-- Секция "Достижения" -->
     <section class="achievements-section">
         <div class="container">
             <h2>Достижения</h2>
             <div class="achievements" id="achievements"></div>
         </div>
     </section>
+</main>
 
     <footer>
         <div class="container">
